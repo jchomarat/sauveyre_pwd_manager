@@ -1,0 +1,37 @@
+#content ul {
+    list-style-type: none;
+}
+
+#content li {
+    cursor: pointer;
+    user-select: none; 
+}
+  
+#content > ul {
+    margin: 0;
+    padding: 0;
+}
+  
+.caret {
+    cursor: pointer;
+    user-select: none;
+}
+  
+.caret::before {
+    content: "\25B7";
+    color: black;
+    display: inline-block;
+    margin-right: 6px;
+}
+  
+.caret-down::before {
+    transform: rotate(90deg);
+}
+
+.nested {
+    display: none;
+}  
+
+.active {
+    display: block;
+}
