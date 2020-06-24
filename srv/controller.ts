@@ -1,5 +1,3 @@
-import "https://deno.land/x/dotenv/load.ts";
-
 const getConfig = async (context: any) => { 
   context.response.body = {
     clientId: Deno.env.get('oauthClientId'),

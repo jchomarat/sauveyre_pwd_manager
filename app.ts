@@ -1,4 +1,4 @@
-import { Application, send } from 'https://deno.land/x/oak/mod.ts'
+import { Application, send } from './deps.ts';
 import router from './srv/routes.ts'
 
 const env = Deno.env.toObject()

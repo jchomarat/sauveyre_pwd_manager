@@ -1,4 +1,198 @@
-class Layout {
+/*
+    Class used to habdle authentication to Microsoft AAD using both Personal and Professional accounts
+*/
+class Authentication  {
+    // Config used to set up OAuth. Both clientId & redirectUri are stored in the server .env file, and retreived 
+    // by calling /config
+    config = {
+        auth: {
+            clientId: undefined,
+            authority: "https://login.microsoftonline.com/common",
+            redirectUri: undefined,
+        },
+        cache: {
+            cacheLocation: "sessionStorage",
+            storeAuthStateInCookie: false
+        }
+    };
+
+    mSALObj = undefined;
+
+    // Permissions requet to login
+    loginRequest = {
+        scopes: ["openid", "profile", "User.Read"]
+    };
+
+    // Permissions request to read files on the user OneDrive
+    oneDriveRequest = {
+        scopes: ["Files.Read"]
+    };
+
+    // Will store the signedIn user account
+    account =  undefined;
+    
+    // Initialize the connexion, retrieve settings from the back end
+    async init() {
+        const paramsResponse = await fetch('/config');
+        const params = await paramsResponse.json();
+        this.config.auth.clientId = params.clientId;
+        this.config.auth.redirectUri = params.redirectUri;
+
+        this.mSALObj = new Msal.UserAgentApplication(this.config);          
+    }
+
+    // Trigger the sign in process
+    async signIn() {
+        if (this.mSALObj) {
+            try {
+                var loginResponse = await this.mSALObj.loginPopup(this.loginRequest);
+                if (this.mSALObj.getAccount()) {
+                    this.account = this.mSALObj.getAccount();
+                    return { success: true }
+                }
+            }
+            catch(error) { return { success: false } }
+        }
+    }
+
+    // Retreive the signed in user's username
+    userName() {
+        if (this.account)
+            return this.account.userName;
+        else
+            return undefined;
+    }
+
+    // Validate if the signed in user is allowed. For now, this permission system is pretty basic, allowed user(s) are 
+    // stored in the .env file on the back end
+    async isAllowed() {
+        if (this.account) {
+            const permissionResponse = await fetch(`/isAllowed/${this.account.userName}`);
+            const permission = await permissionResponse.json();
+            return permission;
+        }
+    }
+
+    // Generate a token in order to read files from OneDrive
+    async getToken() {
+        var tokenResponse = await this.mSALObj.acquireTokenPopup(this.oneDriveRequest);
+        return tokenResponse.accessToken;
+    }
+
+    // Sign out the user
+    async signOut() {
+        if (this.mSALObj) {
+            await this.mSALObj.logout();
+        }
+    }
+}
+
+/*
+    Wrapper to interact with the lib kdbxweb (https://github.com/keeweb/kdbxweb)
+*/
+class Kdbx {
+    
+    // OneDrive end point to get the db file from. The db file path is stored in the .env file on the back end
+    endPoint = "https://graph.microsoft.com/v1.0/me/drive/root:";
+    
+    // Will store the actual DB in memory (crypted)
+    kdbxDB =  undefined;
+    
+    // Load the DB. This method does actually 2 things: get the 'blob' from OneDrive, and unlock the DB using the provided password
+    async load(token, dbpassword) {
+        // Get dnb path
+        const dbPathResponse = await fetch('/dbpath');
+        const dbPath = (await dbPathResponse.json()).dbPath;
+        
+        // Get file from OneDrive
+        const headers = new Headers();
+        const bearer = `Bearer ${token}`;
+
+        headers.append("Authorization", bearer);
+
+        const options = {
+            method: "GET",
+            headers: headers
+        };
+  
+        try {
+            var dbResponse = await fetch(`${this.endPoint}${dbPath}:/content`, options);
+            var dbBuf = await dbResponse.arrayBuffer();
+        }
+        catch(error) {
+            console.log('Could not retrieve db from OneDrive')
+            return undefined;
+        }
+
+        var entryId = 1;
+
+        try {
+            const pass = kdbxweb.ProtectedValue.fromString(dbpassword);
+            const credentials = new kdbxweb.Credentials(pass);
+            this.kdbxDB = await kdbxweb.Kdbx.load(dbBuf, credentials);
+
+            const buildTree = (parent) => {
+                var child = {};
+                child.name = parent.name;
+                if (parent.groups && parent.groups.length > 0) {
+                    child.children = parent.groups.map((group) => {
+                        return buildTree(group);
+                    });
+                } else child.children = [];
+                if (parent.entries && parent.entries.length > 0) {
+                    child.entries = parent.entries.map((entry) => {
+                        return {
+                            id: entryId++,
+                            title: entry.fields.Title,
+                            url: entry.fields.URL,
+                            userName: entry.fields.UserName,
+                            hashedPassword: entry.uuid.id,
+                            notes: entry.fields.Notes,
+                            hidden: false
+                        };
+                    });
+                }  else child.entries = [];
+                return child;
+            }
+
+            // The json behind 'getDefaultGroup' is complex, buildtree will just expose what we need to the UI
+            return buildTree(this.kdbxDB.getDefaultGroup());
+
+        }
+        catch(error) {
+            console.log('Could not open DB')
+            return undefined;
+        }
+    }
+
+    // Decrypt a hashed password once requested by the UI
+    decryptPwd(entryUUID) {
+        // Find entry in DB kept in memory
+        const search = (group, uuid) => {
+            for (const entry of group.entries) {
+                if (entry.uuid.id === uuid) {
+                    return entry.fields.Password;
+                }
+            }                  
+
+            for (const subgroup of group.groups) {
+                const res = search(subgroup, uuid);
+
+                if (res) {
+                    return res;
+                }
+            }
+        };
+        var hashedPwd = search(this.kdbxDB.getDefaultGroup(), entryUUID);
+        let value = new kdbxweb.ProtectedValue(hashedPwd._value, hashedPwd._salt);
+        return value.getText();
+    }
+}
+
+/*
+    This class builds the entire UI using Reef.js (https://reefjs.com/)
+*/
+class Application {
     
     app = undefined;
     pwd = undefined;
@@ -174,6 +368,7 @@ class Layout {
         });        
     }
 
+    // Select an item in the TreeView
     select(entryId) {
         const search = (tree, target) => {
             for (const entry of tree.entries) {
@@ -200,3 +395,6 @@ class Layout {
         }
     }
 }
+
+var authentication = new Authentication();
+var kdbx = new Kdbx();
