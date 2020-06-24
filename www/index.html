@@ -24,246 +24,17 @@
 <script type="text/javascript" src="js/lib/reef.min.js"></script>
 <script type="text/javascript" src="js/auth.js"></script>
 <script type="text/javascript" src="js/kdbx.js"></script>
+<script type="text/javascript" src="js/layout.js"></script>
 <script type="text/javascript">
 
     var timer = undefined;
 
     window.addEventListener('load', async () => {
 
-        var app = new Reef('#app', {
-            data: {
-                isSignedIn: false,
-                userName: undefined
-            },
-            template: (props) => {
-                return `
-                    <div class="row p-2 bg-secondary text-white">
-                        <div class="d-inline w-50">
-                            <img src='img/logo.png' style='height: 30px' title='author freepik' /> <span class="badge badge-info">Sauveyre (v1.0)</span> KeePass database viewer
-                        </div>
-                        <div class="d-inline w-50 text-right">
-                            <a href="#" id="signIn" class="text-white" style='display: ${props.isSignedIn ? 'none' : 'block'}'>Sign in</a>
-                            <span style='display: ${props.isSignedIn ? 'block' : 'none'}'>
-                                <span id="signedInUsername">${props.userName}</span> | 
-                                <a href="#" class="text-white" id="signOut">Sign out</a>
-                            </span>
-                        </div>
-                    </div>
+        var layout = new Layout();
 
-                    <div id='dbpass' class="row m-2"></div>
-
-                    <div id='content' class="row m-3"></div>
-                `;
-            }
-        });
-
-        var pwd = new Reef('#dbpass', {
-            data: {
-                error: undefined
-            },
-            template: (props) => {
-                return `
-                    <div class="form-horizontal">
-                        <div class="form-group">
-                            <label for="dbpassword">Database password</label>
-                            <input type='password' class="form-control" id='dbpassword' value=""></input>    
-                            <small id="passwordError" class="form-text">${props.error ? props.error : ""}</small>                        
-                        </div>
-                        <button type="button" id='loadDB' class="btn btn-secondary">Load</button>
-                    </div>
-                `;
-            }
-        });
-
-        var content = new Reef('#content', {
-            data: {
-                isLoading: false
-            },
-            template: (props) => {
-                if (props.isLoading) {
-                    return `<div class="w-100 text-center"><img src='img/loading.gif'></img></div>`;
-                }
-                else {
-                    return `
-                        <div id="tree" class="col pl-3"></div>
-                        <div id="entry" class="col pl-3"></div>
-                    `;
-                }
-            }
-        });
-
-        var tree = new Reef('#tree', {
-            data: {
-                rootGroup: undefined
-            },
-            template: (props) => {
-                // Build the tree
-                const buildTree = (parent) => {
-                    // show only if parent has entries to be shwon or children
-                    if ((parent.children && parent.children.length > 0) || (parent.entries && parent.entries.find(e => e.hidden == false))) {
-                        return `
-                            <li>
-                                <span class='caret caret-down'><b>${parent.name}</b></span>
-                                <ul class='nested active'>
-                                    ${parent.children.map((child) => {
-                                        return `
-                                            ${buildTree(child)}
-                                        `;
-                                    }).join('')}
-
-                                    ${parent.entries.map((entry) => {
-                                        if (!entry.hidden) {
-                                            return `
-                                                <li class="treeEntry" data-id="${entry.id}">${entry.title}</li>
-                                            `;
-                                        }
-                                    }).join('')}
-                                </ul>
-                            </li>
-                        `;
-                    }
-                    else return '';
-                }
-                return `
-                    <div id="search"></div>
-                    <ul>
-                        ${buildTree(props.rootGroup)}
-                    </ul>                    
-                `;
-            }
-        });
-
-        var searchEntries = new Reef('#search', {
-            template: (props) => {
-                return `
-                    <input type='text' class="form-control form-control-sm" id='searchKeyword' placeholder="Search ..."></input>              
-                `;
-            }
-        })
-
-        var entryPanel = new Reef('#entry', {
-            data: {
-                entry: undefined
-            },
-            template: (props) => {
-                return `
-                    <form>
-                        <div class="form-group">
-                            <label for="entryTitle">Title</label>
-                            <input type="text" class="form-control" name="entryTitle" id="entryTitle" value="${props.entry ? props.entry.title : ""}"></input>
-                        </div>
-
-                        <div class="form-group">
-                            <label for="entryUrl">Url</label>
-                            <div class="input-group">
-                                <input type="text" class="form-control" name="entryUrl" id="entryUrl" value="${props.entry ? (props.entry.url === "" ? " " : props.entry.url) : ""}"></input>
-                                <div class="copy-value align-middle pt-1" data-for="entryUrl" style="cursor: pointer;">&#128149</div>
-                            </div>
-                        </div>
-
-                        <div class="form-group">
-                            <label for="entryUsername">User name</label>
-                            <div class="input-group">
-                                <input type="text" class="form-control" name="entryUsername" id="entryUsername" value="${props.entry ? props.entry.userName : ""}"></input>
-                                <div class="copy-value align-middle pt-1" data-for="entryUsername" style="cursor: pointer;">&#128149</div>
-                            </div>
-                        </div>
-
-                        <div class="form-group">
-                            <label for="entryPassword">Password</label>
-                            <div class="input-group">
-                                <input type="password" class="form-control" name="entryPassword" id="entryPassword" value="${props.entry ? props.entry.hashedPassword : ""}"></input>
-                                <div class="view-value align-middle pt-1" data-for="entryPassword" style="cursor: pointer;">&#128065</div>
-                                <div class="copy-value align-middle pt-1" data-for="entryPassword" style="cursor: pointer;">&#128149</div>
-                            </div>
-                        </div>
-
-                        <div class="form-group">
-                            <label for="entryNotes">Notes</label>
-                            <textarea name="entryNotes" class="form-control" row="10">
-                                ${props.entry ? props.entry.notes : ""}  
-                            </textarea>
-                        </div
-                    </form>
-                `;
-            }
-        });
-
-        // Register event receivers
-        document.addEventListener('click', async (event) => {
-
-            if (event.target.id == 'signIn') {
-                await Auth.init();
-                var result = await Auth.signIn();
-                if (result && result.success) {
-                    var isAllowed = await Auth.isAllowed();
-                    if (isAllowed && isAllowed.isAllowed) {
-                        app.data = {
-                            isSignedIn: true,
-                            userName: Auth.userName()
-                        }
-                        app.attach(pwd);
-
-                        // Give focus to text field
-                        window.setTimeout(() => {
-                            document.getElementById('dbpassword').focus();
-                        }, 500);
-                    }
-                }
-            }
-
-            if (event.target.id == 'signOut') {
-                await Auth.signOut();
-            }
-
-            if (event.target.id == 'loadDB') {
-                // Get password before disposing the element
-                var dbpass = document.getElementById('dbpassword').value;
-                //app.detach does not seem to work => open a ticket
-                app.attached.splice(0);
-                app.render();
-                content.data.isLoading = true;
-                // Get token
-                var token = await Auth.getToken();
-                if (token) {
-                    var data = await Kdbx.load(token, dbpass);
-                    if (data) {
-                        content.data = {
-                            isLoading: false,
-                        };
-
-                        tree.data = {
-                            rootGroup: data
-                        };
-
-                        content.attach(entryPanel);
-                        tree.attach(searchEntries);
-
-                        // Give focus to search
-                        window.setTimeout(() => {
-                            document.getElementById('searchKeyword').focus();
-                        }, 500);
-                    }
-                    else {
-                        // Could not log DB
-                        content.data.isLoading = false;
-                        pwd.data = {
-                            error: "Could not open database. Check JS console for information."
-                        }
-                    }
-                }
-                else {
-                    // Could not log DB
-                    content.data.isLoading = false;
-                    pwd.data = {
-                        error: "Could not open database. Check JS console for information."
-                    }
-                }
-            }
-
-            if (event.target.classList.contains('copy-value')) {
-                var input = document.getElementById(event.target.getAttribute('data-for'));
-
+        var helper = {
+            copyPassword: (input) => {
                 var originalValue = undefined;
                 if (input.type === 'password') {
                     originalValue = input.value;
@@ -283,6 +54,106 @@
                         input.type = "password";
                     }, 500);
                 }
+            },
+
+            moveSelectionTo: (increment, defaultIfNoSelection) => {
+                var currentSelection = document.querySelector('li.itemselected');
+                var currentIndex = 0;
+                
+                if (currentSelection !== null) {
+                    currentIndex = currentSelection.getAttribute('data-index')*1;
+                }
+                else {
+                    // No selection
+                    if (defaultIfNoSelection !== null)
+                        currentIndex = defaultIfNoSelection;
+                    else return; // Nothing to do
+                }
+
+                var futurSelection = document.querySelector(`li.treeEntry[data-index='${currentIndex + increment}']`);
+                if (futurSelection) {
+                    var futurSelectionId = futurSelection.getAttribute('data-id')*1;
+                    layout.select(futurSelectionId);                    
+                }
+            }
+        }
+        
+
+        // Register event receivers
+        document.addEventListener('click', async (event) => {
+
+            if (event.target.id == 'signIn') {
+                await Auth.init();
+                var result = await Auth.signIn();
+                if (result && result.success) {
+                    var isAllowed = await Auth.isAllowed();
+                    if (isAllowed && isAllowed.isAllowed) {
+                        layout.app.data = {
+                            isSignedIn: true,
+                            userName: Auth.userName()
+                        }
+                        layout.app.attach(layout.pwd);
+
+                        // Give focus to text field
+                        window.setTimeout(() => {
+                            document.getElementById('dbpassword').focus();
+                        }, 500);
+                    }
+                }
+            }
+
+            if (event.target.id == 'signOut') {
+                await Auth.signOut();
+            }
+
+            if (event.target.id == 'loadDB') {
+                // Get password before disposing the element
+                var dbpass = document.getElementById('dbpassword').value;
+                //app.detach does not seem to work => open a ticket
+                layout.app.attached.splice(0);
+                layout.app.render();
+                layout.content.data.isLoading = true;
+                // Get token
+                var token = await Auth.getToken();
+                if (token) {
+                    var data = await Kdbx.load(token, dbpass);
+                    if (data) {
+                        layout.content.data = {
+                            isLoading: false,
+                        };
+
+                        layout.tree.data = {
+                            rootGroup: data
+                        };
+
+                        layout.content.attach(layout.entryPanel);
+                        layout.tree.attach(layout.searchEntries);
+
+                        // Give focus to search
+                        window.setTimeout(() => {
+                            document.getElementById('searchKeyword').focus();
+                        }, 500);
+                    }
+                    else {
+                        // Could not log DB
+                        layout.content.data.isLoading = false;
+                        layout.pwd.data = {
+                            error: "Could not open database. Check JS console for information."
+                        }
+                    }
+                }
+                else {
+                    // Could not log DB
+                    layout.content.data.isLoading = false;
+                    layout.pwd.data = {
+                        error: "Could not open database. Check JS console for information."
+                    }
+                }
+            }
+
+            if (event.target.classList.contains('copy-value')) {
+                var input = document.getElementById(event.target.getAttribute('data-for'));
+                helper.copyPassword(input);
             }
 
             // for the tree
@@ -292,32 +163,10 @@
             }
 
             if (event.target.classList.contains('treeEntry')) {
-                const search = (tree, target) => {
-                    for (const entry of tree.entries) {
-                        if (entry.id === target) {
-                            return entry;
-                        }
-                    }                  
-
-                    for (const child of tree.children) {
-                        const res = search(child, target);
-
-                        if (res) {
-                            return res;
-                        }
-                    }
-                };
-                
                 var selectedId = event.target.getAttribute('data-id')*1;
-
-                var entry = search(tree.data.rootGroup, selectedId);
-                if (entry) {
-                    entryPanel.data = {
-                        entry: entry
-                    };
-                    // Go up the page
-                    scroll(0,0);
-                }
+                layout.select(selectedId);
+                // Go up the page
+                scroll(0,0);
             }
 
         }, false);
@@ -342,14 +191,12 @@
                     }
                 };
 
-                console.log(tree.data.rootGroup)
                 // Clone tree
-                var treeCopy = Reef.clone(tree.data);
+                var treeCopy = Reef.clone(layout.tree.data);
                 // Filter values
                 filter(treeCopy.rootGroup, query);
-                console.log(treeCopy.rootGroup)
                 // Copy back to Reef to update UI
-                tree.data = treeCopy;
+                layout.tree.data = treeCopy;
             }
 
         }, false);
@@ -375,16 +222,52 @@
 
         }, false);
 
-        document.addEventListener('keyup', (event) => {
+        document.addEventListener('keydown', (event) => {
             
             // submit DB password
             if (event.target.id === 'dbpassword' && event.keyCode === 13) {
                 document.getElementById('loadDB').click();
             }
 
+            // Allow navigation with keys up/down in the tree, regardless the focused control
+            if (event.keyCode === 40) {
+                // Key down
+                helper.moveSelectionTo(+1, 0);
+                event.preventDefault()
+            }
+
+            if (event.keyCode === 38) {
+                // Key up
+                helper.moveSelectionTo(-1, null);
+                event.preventDefault()
+            }
+
+            // ESC to reset search and focus search field
+            if (event.keyCode === 27) {
+                console.log('esc');
+                var input = document.getElementById('searchKeyword');
+                input.value = '';
+                // Trigger input to refresh the ui
+                input.dispatchEvent(new Event('input', {
+                    bubbles: true,
+                    cancelable: true,
+                }));
+                input.focus();
+
+                event.preventDefault();
+            }
+
+            // Shortcut to copy password, regardless the focus only if an entry is selected
+            if (event.ctrlKey && event.keyCode === 67) {
+                var input = document.getElementById('entryPassword');
+                helper.copyPassword(input);     
+
+                event.preventDefault();
+            }
+
         }, false);
 
-        app.render();
+        layout.app.render();
 
     });
 

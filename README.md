@@ -5,7 +5,4 @@
 
  TODO
 
- Arrow up down
  CTRL+C to copy password of current entry
- hightligh selected item
- find a real copy icon ;)

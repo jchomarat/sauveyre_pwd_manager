@@ -26,7 +26,7 @@ var Kdbx = {
             return undefined;
         }
 
-        var entryId = 0;
+        var entryId = 1;
 
         try {
             const pass = kdbxweb.ProtectedValue.fromString(dbpassword);

@@ -35,3 +35,7 @@
 .active {
     display: block;
 }
+
+.itemselected {
+    color: red;
+}
