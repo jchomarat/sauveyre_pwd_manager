@@ -1,10 +1,7 @@
-/*
-    Class used to habdle authentication to Microsoft AAD using both Personal and Professional accounts
-*/
-class Authentication  {
+var Authentication = {
     // Config used to set up OAuth. Both clientId & redirectUri are stored in the server .env file, and retreived 
     // by calling /config
-    config = {
+    config: {
         auth: {
             clientId: undefined,
             redirectUri: undefined,
@@ -13,96 +10,95 @@ class Authentication  {
             cacheLocation: "localStorage",
             storeAuthStateInCookie: false
         }
-    };
+    },
 
-    mSALObj = undefined;
+    mSALObj: undefined,
 
     // Permissions requet to login
-    loginRequest = {
+    loginRequest: {
         scopes: ["openid", "profile", "User.Read"],
         forceRefresh: false
-    };
+    },
 
     // Permissions request to read files on the user OneDrive
-    oneDriveRequest = {
+    oneDriveRequest: {
         scopes: ["Files.Read"]
-    };
+    },
 
     // Will store the signedIn user account
-    account =  undefined;
-    
+    account: undefined,
+
     // Initialize the connexion, retrieve settings from the back end
-    async init() {
+    init: async function() {
         const paramsResponse = await fetch('/config');
         const params = await paramsResponse.json();
         this.config.auth.clientId = params.clientId;
         this.config.auth.redirectUri = params.redirectUri;
 
         this.mSALObj = new Msal.UserAgentApplication(this.config);
-    }
+
+        // Check if this is the call back after login
+        if (this.mSALObj.getAccount() && !this.mSALObj.isCallback(window.location.hash)) {
+            // User loggedin, nothing to do
+            this.account = this.mSALObj.getAccount();
+        }
+    },
+
+    isLoggedIn: function() {
+        return (this.account !== undefined);
+    },
 
     // Trigger the sign in process
-    async signIn() {
+    signIn: async function() {
         if (this.mSALObj) {
-            try {
-                var loginResponse = this.mSALObj.loginPopup(this.loginRequest)
-                if (this.mSALObj.getAccount()) {
-                    this.account = this.mSALObj.getAccount();
-                    return { success: true }
-                }
-            }
-            catch(error) { 
-                console.log(error);
-                return { success: false }
-            }
+            this.mSALObj.loginRedirect(this.loginRequest);
         }
-    }
+    },
 
     // Retreive the signed in user's username
-    userName() {
+    userName: function() {
         if (this.account)
             return this.account.userName;
         else
             return undefined;
-    }
+    },
 
     // Validate if the signed in user is allowed. For now, this permission system is pretty basic, allowed user(s) are 
     // stored in the .env file on the back end
-    async isAllowed() {
+    isAllowed: async function() {
         if (this.account) {
             const permissionResponse = await fetch(`/isAllowed/${this.account.userName}`);
             const permission = await permissionResponse.json();
             return permission;
         }
-    }
+    },
 
     // Generate a token in order to read files from OneDrive
-    async getToken() {
-        var tokenResponse = await this.mSALObj.acquireTokenPopup(this.oneDriveRequest);
+    getToken: async function() {
+        var tokenResponse = await this.mSALObj.acquireTokenSilent(this.oneDriveRequest);
         return tokenResponse.accessToken;
-    }
+    },
 
     // Sign out the user
-    async signOut() {
+    signOut: async function() {
         if (this.mSALObj) {
             await this.mSALObj.logout();
         }
     }
-}
+};
 
 /*
     Wrapper to interact with the lib kdbxweb (https://github.com/keeweb/kdbxweb)
 */
-class Kdbx {
+var Kdbx = {
     
-    // OneDrive end point to get the db file from. The db file path is stored in the .env file on the back end
-    endPoint = "https://graph.microsoft.com/v1.0/me/drive/root:";
+    endPoint: "https://graph.microsoft.com/v1.0/me/drive/root:",
     
     // Will store the actual DB in memory (crypted)
-    kdbxDB =  undefined;
+    kdbxDB:  undefined,
     
     // Load the DB. This method does actually 2 things: get the 'blob' from OneDrive, and unlock the DB using the provided password
-    async load(token, dbpassword) {
+    load: async function(token, dbpassword) {
         // Get dnb path
         const dbPathResponse = await fetch('/dbpath');
         const dbPath = (await dbPathResponse.json()).dbPath;
@@ -166,10 +162,10 @@ class Kdbx {
             console.log('Could not open DB')
             return undefined;
         }
-    }
+    },
 
     // Decrypt a hashed password once requested by the UI
-    decryptPwd(entryUUID) {
+    decryptPwd: function(entryUUID) {
         // Find entry in DB kept in memory
         const search = (group, uuid) => {
             for (const entry of group.entries) {
@@ -189,22 +185,27 @@ class Kdbx {
         var hashedPwd = search(this.kdbxDB.getDefaultGroup(), entryUUID);
         let value = new kdbxweb.ProtectedValue(hashedPwd._value, hashedPwd._salt);
         return value.getText();
-    }
-}
+    },
+};
 
 /*
     This class builds the entire UI using Reef.js (https://reefjs.com/)
 */
-class Application {
-    
-    app = undefined;
-    pwd = undefined;
-    content = undefined;
-    tree = undefined;
-    searchEntries = undefined;
-    entryPanel = undefined;
+var Application = {
 
-    constructor() {
+    app: undefined,
+
+    pwd: undefined,
+
+    content: undefined,
+
+    tree: undefined,
+
+    searchEntries: undefined,
+
+    entryPanel: undefined,
+
+    init: function() {
 
         this.app = new Reef('#app', {
             data: {
@@ -369,10 +370,10 @@ class Application {
                 `;
             }
         });        
-    }
+    },
 
     // Select an item in the TreeView
-    select(entryId) {
+    select: function(entryId) {
         const search = (tree, target) => {
             for (const entry of tree.entries) {
                 if (entry.id === target) {
@@ -397,7 +398,4 @@ class Application {
             };
         }
     }
-}
-
-var authentication = new Authentication();
-var kdbx = new Kdbx();
+};

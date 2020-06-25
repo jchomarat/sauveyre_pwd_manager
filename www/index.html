@@ -19,14 +19,14 @@
 
     window.addEventListener('load', async () => {
 
-        var application = new Application();
+        Application.init(); 
 
         var helper = {
             copyPassword: (input) => {
                 var originalValue = undefined;
                 if (input.type === 'password') {
                     originalValue = input.value;
-                    var decryptedPassword = kdbx.decryptPwd(originalValue);                    
+                    var decryptedPassword = Kdbx.decryptPwd(originalValue);                    
                     input.value = decryptedPassword;
                     input.type = 'text';
                 }
@@ -61,60 +61,65 @@
                 var futurSelection = document.querySelector(`li.treeEntry[data-index='${currentIndex + increment}']`);
                 if (futurSelection) {
                     var futurSelectionId = futurSelection.getAttribute('data-id')*1;
-                    application.select(futurSelectionId);                    
+                    Application.select(futurSelectionId);                    
                 }
-            }
+            },
+        
+            signedIn: () => {
+                Application.app.data = {
+                    isSignedIn: true,
+                    userName: Authentication.userName()
+                }
+                Application.app.attach(Application.pwd);
+
+                // Give focus to text field
+                window.setTimeout(() => {
+                    document.getElementById('dbpassword').focus();
+                }, 500);
+            },
         }
         
         // Register event receivers
         document.addEventListener('click', async (event) => {
 
             if (event.target.id == 'signIn') {
-                await authentication.init();
-                var result = await authentication.signIn();
+                
+                var result = await Authentication.signIn();
                 if (result && result.success) {
-                    var isAllowed = await authentication.isAllowed();
+                    var isAllowed = await Authentication.isAllowed();
                     if (isAllowed && isAllowed.isAllowed) {
-                        application.app.data = {
-                            isSignedIn: true,
-                            userName: authentication.userName()
-                        }
-                        application.app.attach(application.pwd);
-
-                        // Give focus to text field
-                        window.setTimeout(() => {
-                            document.getElementById('dbpassword').focus();
-                        }, 500);
+                        helper.signedIn();
                     }
                 }
+                event.preventDefault();
             }
 
             if (event.target.id == 'signOut') {
-                await authentication.signOut();
+                await Authentication.signOut();
             }
 
             if (event.target.id == 'loadDB') {
                 // Get password before disposing the element
                 var dbpass = document.getElementById('dbpassword').value;
                 //app.detach does not seem to work => open a ticket
-                application.app.attached.splice(0);
-                application.app.render();
-                application.content.data.isLoading = true;
+                Application.app.attached.splice(0);
+                Application.app.render();
+                Application.content.data.isLoading = true;
                 // Get token
-                var token = await authentication.getToken();
+                var token = await Authentication.getToken();
                 if (token) {
-                    var data = await kdbx.load(token, dbpass);
+                    var data = await Kdbx.load(token, dbpass);
                     if (data) {
-                        application.content.data = {
+                        Application.content.data = {
                             isLoading: false,
                         };
 
-                        application.tree.data = {
+                        Application.tree.data = {
                             rootGroup: data
                         };
 
-                        application.content.attach(application.entryPanel);
-                        application.tree.attach(application.searchEntries);
+                        Application.content.attach(Application.entryPanel);
+                        Application.tree.attach(Application.searchEntries);
 
                         // Give focus to search
                         window.setTimeout(() => {
@@ -123,16 +128,16 @@
                     }
                     else {
                         // Could not log DB
-                        application.content.data.isLoading = false;
-                        application.pwd.data = {
+                        Application.content.data.isLoading = false;
+                        Application.pwd.data = {
                             error: "Could not open database. Check JS console for information."
                         }
                     }
                 }
                 else {
                     // Could not log DB
-                    application.content.data.isLoading = false;
-                    application.pwd.data = {
+                    Application.content.data.isLoading = false;
+                    Application.pwd.data = {
                         error: "Could not open database. Check JS console for information."
                     }
                 }
@@ -151,7 +156,7 @@
 
             if (event.target.classList.contains('treeEntry')) {
                 var selectedId = event.target.getAttribute('data-id')*1;
-                application.select(selectedId);
+                Application.select(selectedId);
                 // Go up the page
                 scroll(0,0);
             }
@@ -179,11 +184,11 @@
                 };
 
                 // Clone tree
-                var treeCopy = Reef.clone(application.tree.data);
+                var treeCopy = Reef.clone(Application.tree.data);
                 // Filter values
                 filter(treeCopy.rootGroup, query);
                 // Copy back to Reef to update UI
-                application.tree.data = treeCopy;
+                Application.tree.data = treeCopy;
             }
 
         }, false);
@@ -193,7 +198,7 @@
             if (event.target.classList.contains('view-value')) {
                 var input = document.getElementById(event.target.getAttribute('data-for'));
                 var entryuuid = input.value;
-                var decryptedPassword = kdbx.decryptPwd(entryuuid);
+                var decryptedPassword = Kdbx.decryptPwd(entryuuid);
                 
                 input.value = decryptedPassword;
                 input.type = 'text';
@@ -251,8 +256,14 @@
 
         }, false);
 
-        application.app.render();
-
+        await Authentication.init();
+        if (Authentication.isLoggedIn()) {
+            helper.signedIn();
+        }
+        else {
+            Application.app.render();
+        }
+        
     });
 
 </script>
