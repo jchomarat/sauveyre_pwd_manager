@@ -1,8 +1,8 @@
 import { Application, send } from './deps.ts';
-import router from './srv/routes.ts'
+import router from './routes.ts'
 
 const env = Deno.env.toObject()
-const HOST = env.HOST || '127.0.0.1'
+const HOST = env.HOST || '0.0.0.0'
 const PORT = env.PORT || 3000
 
 const app = new Application()
@@ -30,5 +30,5 @@ app.use(async (context: any, next: any) => {
     await next();
 });
 
-console.log(`Listening on port ${PORT} ...`)
+console.log(`Listening on port ${HOST}:${PORT} ...`)
 await app.listen(`${HOST}:${PORT}`)

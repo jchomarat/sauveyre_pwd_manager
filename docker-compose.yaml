@@ -1,0 +1,8 @@
+version: '3.7'
+services:
+  {NAME}:
+    image: {ACR}.azurecr.io/{IMAGE}:{TAG}
+    environment:
+        - PORT=80
+    ports:
+        - '80:80'

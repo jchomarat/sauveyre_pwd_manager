@@ -7,11 +7,10 @@ class Authentication  {
     config = {
         auth: {
             clientId: undefined,
-            authority: "https://login.microsoftonline.com/common",
             redirectUri: undefined,
         },
         cache: {
-            cacheLocation: "sessionStorage",
+            cacheLocation: "localStorage",
             storeAuthStateInCookie: false
         }
     };
@@ -20,7 +19,8 @@ class Authentication  {
 
     // Permissions requet to login
     loginRequest = {
-        scopes: ["openid", "profile", "User.Read"]
+        scopes: ["openid", "profile", "User.Read"],
+        forceRefresh: false
     };
 
     // Permissions request to read files on the user OneDrive
@@ -38,20 +38,23 @@ class Authentication  {
         this.config.auth.clientId = params.clientId;
         this.config.auth.redirectUri = params.redirectUri;
 
-        this.mSALObj = new Msal.UserAgentApplication(this.config);          
+        this.mSALObj = new Msal.UserAgentApplication(this.config);
     }
 
     // Trigger the sign in process
     async signIn() {
         if (this.mSALObj) {
             try {
-                var loginResponse = await this.mSALObj.loginPopup(this.loginRequest);
+                var loginResponse = this.mSALObj.loginPopup(this.loginRequest)
                 if (this.mSALObj.getAccount()) {
                     this.account = this.mSALObj.getAccount();
                     return { success: true }
                 }
             }
-            catch(error) { return { success: false } }
+            catch(error) { 
+                console.log(error);
+                return { success: false }
+            }
         }
     }
 
