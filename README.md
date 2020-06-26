@@ -2,7 +2,8 @@
 
 This web application is a simple [KeePass](https://keepass.info/) database viewer
 
-![Sauveyre](./doc/sauveyre.png)
+![Sauveyre main](./doc/sauveyre1.png "Search") ![Sauveyre entry](./doc/sauveyre2.png "Entry")
+
 
 The KeePass database used is stored on OneDrive, and to simplify the process, it cannot be picked from the UI. It is a default value stored as a global parameter. This allows to ensure that it is always the same file used. It also allows to still use third party client from your desktop. Again, this app is readonly for a quick access from any machine / mobile.
 
