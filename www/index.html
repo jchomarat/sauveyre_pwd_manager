@@ -77,6 +77,22 @@
                     document.getElementById('dbpassword').focus();
                 }, 500);
             },
+
+            showCryptedValue: (element) => {
+                var input = document.getElementById(element.getAttribute('data-for'));
+                var entryuuid = input.value;
+                var decryptedPassword = Kdbx.decryptPwd(entryuuid);
+                
+                input.value = decryptedPassword;
+                input.type = 'text';
+
+                // return the release action to bind to the correct events
+                return (event) => {
+                    input.value = entryuuid;
+                    input.type = "password";
+                };
+                
+            }
         }
         
         // Register event receivers
@@ -196,20 +212,19 @@
         document.addEventListener('mousedown', (event) => {
 
             if (event.target.classList.contains('view-value')) {
-                var input = document.getElementById(event.target.getAttribute('data-for'));
-                var entryuuid = input.value;
-                var decryptedPassword = Kdbx.decryptPwd(entryuuid);
-                
-                input.value = decryptedPassword;
-                input.type = 'text';
-
-                // Wait for mouse up or leave to hide back the value
-                const release = (event) => {
-                    input.value = entryuuid;
-                    input.type = "password";
-                }
+                const release = helper.showCryptedValue(event.target);
                 event.target.addEventListener("mouseleave", release, false);
                 event.target.addEventListener("mouseup", release, false);
+            }
+
+        }, false);
+
+        document.addEventListener('touchstart', (event) => {
+
+            if (event.target.classList.contains('view-value')) {
+                const release = helper.showCryptedValue(event.target);
+                event.target.addEventListener("touchend", release, false);
+                event.target.addEventListener("touchmove", release, false);
             }
 
         }, false);

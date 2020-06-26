@@ -39,3 +39,19 @@
 .itemselected {
     color: red;
 }
+
+.copy-value {
+    background-image: url('../img/copy.png');
+    background-position:center center;
+    background-repeat: no-repeat;
+    background-size: 20px;
+    width: 25px;
+}
+
+.view-value {
+    background-image: url('../img/view.png');
+    background-position:center center;
+    background-repeat: no-repeat;
+    background-size: 20px;
+    width: 25px;
+}

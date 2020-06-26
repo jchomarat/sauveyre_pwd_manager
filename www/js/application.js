@@ -332,37 +332,37 @@ var Application = {
                     <form>
                         <div class="form-group">
                             <label for="entryTitle">Title</label>
-                            <input type="text" class="form-control" name="entryTitle" id="entryTitle" value="${props.entry ? props.entry.title : ""}"></input>
+                            <input type="text" readonly class="form-control" name="entryTitle" id="entryTitle" ${props.entry ? `value="${props.entry.title}"` : ""}></input>
                         </div>
 
                         <div class="form-group">
                             <label for="entryUrl">Url</label>
                             <div class="input-group">
-                                <input type="text" class="form-control" name="entryUrl" id="entryUrl" value="${props.entry ? (props.entry.url === "" ? " " : props.entry.url) : ""}"></input>
-                                <div class="copy-value align-middle pt-1" data-for="entryUrl" style="cursor: pointer;">&#128458</div>
+                                <input type="text" readonly class="form-control" name="entryUrl" id="entryUrl" ${props.entry ? (props.entry.url === `value=" "` ? " " : `value="${props.entry.url}"`) : ""}></input>
+                                <div class="input-group-prepend copy-value" data-for="entryUrl"></div>
                             </div>
                         </div>
 
                         <div class="form-group">
                             <label for="entryUsername">User name</label>
                             <div class="input-group">
-                                <input type="text" class="form-control" name="entryUsername" id="entryUsername" value="${props.entry ? props.entry.userName : ""}"></input>
-                                <div class="copy-value align-middle pt-1" data-for="entryUsername" style="cursor: pointer;">&#128458</div>
+                                <input type="text" readonly class="form-control" name="entryUsername" id="entryUsername" ${props.entry ? `value="${props.entry.userName}"` : ""}></input>
+                                <div class="input-group-prepend copy-value" data-for="entryUsername"></div>
                             </div>
                         </div>
 
                         <div class="form-group">
                             <label for="entryPassword">Password</label>
                             <div class="input-group">
-                                <input type="password" class="form-control" name="entryPassword" id="entryPassword" value="${props.entry ? props.entry.hashedPassword : ""}"></input>
-                                <div class="view-value align-middle pt-1" data-for="entryPassword" style="cursor: pointer;">&#128065</div>
-                                <div class="copy-value align-middle pt-1" data-for="entryPassword" style="cursor: pointer;">&#128458</div>
+                                <input type="password" readonly class="form-control" name="entryPassword" id="entryPassword" ${props.entry ? `value="${props.entry.hashedPassword}"` : ""}></input>
+                                <div class="input-group-prepend copy-value" data-for="entryPassword"></div>
+                                <div class="input-group-prepend view-value" data-for="entryPassword"></div>
                             </div>
                         </div>
 
                         <div class="form-group">
                             <label for="entryNotes">Notes</label>
-                            <textarea name="entryNotes" class="form-control" row="10">
+                            <textarea name="entryNotes" class="form-control" row="10" readonly>
                                 ${props.entry ? props.entry.notes : ""}  
                             </textarea>
                         </div
