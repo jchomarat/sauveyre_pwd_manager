@@ -263,7 +263,7 @@ var Application = {
                 else {
                     return `
                         <div id="tree" class="col pl-3"></div>
-                        <div id="entry" class="col pl-3"></div>
+                        <div id="entry" class="col pl-3 is-hidden"></div>
                     `;
                 }
             }
@@ -272,44 +272,43 @@ var Application = {
         this.tree = new Reef('#tree', {
             data: {
                 rootGroup: undefined,
-                selectedItemId: undefined
+                selectedItemId: -1
             },
             template: (props) => {
                 // Build the tree
                 var index = 1;
-                const buildTree = (parent) => {
+                const flattenTree = (parent, levels) => {
                     // show only if parent has entries to be shwon or children
                     if ((parent.children && parent.children.length > 0) || (parent.entries && parent.entries.find(e => e.hidden == false))) {
                         return `
-                            <li>
-                                <span class='caret caret-down'><b>${parent.name}</b></span>
-                                <ul class='nested active'>
-                                    ${parent.children.map((child) => {
-                                        return `
-                                            ${buildTree(child)}
-                                        `;
-                                    }).join('')}
+                            ${parent.children.map((child) => {
+                                levels.push(child.name);
+                                return `
+                                    ${flattenTree(child, levels)}
+                                `;
+                            }).join('')}
 
-                                    ${parent.entries.map((entry) => {
-                                        if (!entry.hidden) {
-                                            return `
-                                                <li 
-                                                    class="treeEntry ${props.selectedItemId && props.selectedItemId === entry.id ? "itemselected" : ""}" 
-                                                    data-id="${entry.id}" data-index="${index++}">
-                                                ${entry.title}</li>
-                                            `;
-                                        }
-                                    }).join('')}
-                                </ul>
-                            </li>
-                        `;
+                            ${parent.entries.map((entry) => {
+                                if (!entry.hidden) {
+                                    return `
+                                        <li 
+                                            class="treeEntry ${props.selectedItemId === entry.id ? "itemselected" : ""}" 
+                                            data-id="${entry.id}" data-index="${index++}">${levels.join('/')}/${entry.title}</li>
+                                    `;
+                                }
+                            }).join('')}
+                        `;  
                     }
                     else return '';
                 }
                 return `
                     <div id="search"></div>
-                    <ul>
-                        ${buildTree(props.rootGroup)}
+                    <ul class="mt-3">
+                        ${props.rootGroup.children.map((child) => {
+                            return `
+                                ${flattenTree(child, [child.name])}
+                            `;
+                        }).join('')}
                     </ul>                    
                 `;
             }
@@ -329,44 +328,49 @@ var Application = {
             },
             template: (props) => {
                 return `
-                    <form>
-                        <div class="form-group">
-                            <label for="entryTitle">Title</label>
-                            <input type="text" readonly class="form-control" name="entryTitle" id="entryTitle" ${props.entry ? `value="${props.entry.title}"` : ""}></input>
-                        </div>
-
-                        <div class="form-group">
-                            <label for="entryUrl">Url</label>
-                            <div class="input-group">
-                                <input type="text" readonly class="form-control" name="entryUrl" id="entryUrl" ${props.entry ? (props.entry.url === `value=" "` ? " " : `value="${props.entry.url}"`) : ""}></input>
-                                <div class="input-group-prepend copy-value" data-for="entryUrl"></div>
+                    <div class="d-block">
+                        <img src="./img/arrow-back.png" id="goBack" style="height: 15px" />
+                    </div>
+                    <div class="d-block">
+                        <form>
+                            <div class="form-group">
+                                <label for="entryTitle">Title</label>
+                                <input type="text" readonly class="form-control" name="entryTitle" id="entryTitle" ${props.entry ? `value="${props.entry.title}"` : ""}></input>
                             </div>
-                        </div>
 
-                        <div class="form-group">
-                            <label for="entryUsername">User name</label>
-                            <div class="input-group">
-                                <input type="text" readonly class="form-control" name="entryUsername" id="entryUsername" ${props.entry ? `value="${props.entry.userName}"` : ""}></input>
-                                <div class="input-group-prepend copy-value" data-for="entryUsername"></div>
+                            <div class="form-group">
+                                <label for="entryUrl">Url</label>
+                                <div class="input-group">
+                                    <input type="text" readonly class="form-control" name="entryUrl" id="entryUrl" ${props.entry ? (props.entry.url === `value=" "` ? " " : `value="${props.entry.url}"`) : ""}></input>
+                                    <div class="input-group-prepend copy-value" data-for="entryUrl"></div>
+                                </div>
                             </div>
-                        </div>
 
-                        <div class="form-group">
-                            <label for="entryPassword">Password</label>
-                            <div class="input-group">
-                                <input type="password" readonly class="form-control" name="entryPassword" id="entryPassword" ${props.entry ? `value="${props.entry.hashedPassword}"` : ""}></input>
-                                <div class="input-group-prepend copy-value" data-for="entryPassword"></div>
-                                <div class="input-group-prepend view-value" data-for="entryPassword"></div>
+                            <div class="form-group">
+                                <label for="entryUsername">User name</label>
+                                <div class="input-group">
+                                    <input type="text" readonly class="form-control" name="entryUsername" id="entryUsername" ${props.entry ? `value="${props.entry.userName}"` : ""}></input>
+                                    <div class="input-group-prepend copy-value" data-for="entryUsername"></div>
+                                </div>
                             </div>
-                        </div>
 
-                        <div class="form-group">
-                            <label for="entryNotes">Notes</label>
-                            <textarea name="entryNotes" class="form-control" row="10" readonly>
-                                ${props.entry ? props.entry.notes : ""}  
-                            </textarea>
-                        </div
-                    </form>
+                            <div class="form-group">
+                                <label for="entryPassword">Password</label>
+                                <div class="input-group">
+                                    <input type="password" readonly class="form-control" name="entryPassword" id="entryPassword" ${props.entry ? `value="${props.entry.hashedPassword}"` : ""}></input>
+                                    <div class="input-group-prepend copy-value" data-for="entryPassword"></div>
+                                    <div class="input-group-prepend view-value" data-for="entryPassword"></div>
+                                </div>
+                            </div>
+
+                            <div class="form-group">
+                                <label for="entryNotes">Notes</label>
+                                <textarea name="entryNotes" class="form-control" row="10" readonly>
+                                    ${props.entry ? props.entry.notes : ""}  
+                                </textarea>
+                            </div
+                        </form>
+                    </div>
                 `;
             }
         });        

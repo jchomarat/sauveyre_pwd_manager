@@ -1,5 +1,6 @@
 #content ul {
     list-style-type: none;
+    padding-inline-start: 3px;
 }
 
 #content li {
@@ -54,4 +55,8 @@
     background-repeat: no-repeat;
     background-size: 20px;
     width: 25px;
+}
+
+.is-hidden {
+    display: none;
 }

@@ -92,6 +92,16 @@
                     input.type = "password";
                 };
                 
+            },
+
+            showTree: () => {
+                document.getElementById('tree').classList.remove('is-hidden');
+                document.getElementById('entry').classList.add('is-hidden');
+            },
+
+            showEntry: () => {
+                document.getElementById('tree').classList.add('is-hidden');
+                document.getElementById('entry').classList.remove('is-hidden');
             }
         }
         
@@ -173,8 +183,12 @@
             if (event.target.classList.contains('treeEntry')) {
                 var selectedId = event.target.getAttribute('data-id')*1;
                 Application.select(selectedId);
-                // Go up the page
-                scroll(0,0);
+                // Adapt UI
+                helper.showEntry();
+            }
+
+            if (event.target.id === 'goBack') {
+                helper.showTree();
             }
 
         }, false);
@@ -203,6 +217,10 @@
                 var treeCopy = Reef.clone(Application.tree.data);
                 // Filter values
                 filter(treeCopy.rootGroup, query);
+                if (query.length === 0) {
+                    // Reset selection as nothing is in the text field
+                    treeCopy.selectedItemId = -1;
+                }
                 // Copy back to Reef to update UI
                 Application.tree.data = treeCopy;
             }
@@ -249,6 +267,19 @@
                 event.preventDefault()
             }
 
+            if (event.keyCode === 13) {
+                // Return
+                if (event.target.id === 'searchKeyword') {
+                    // If no selection, load the first one in the list (if any)
+                    // If selection, load it
+                    console.log(Application.tree.data.selectedItemId);
+                    if (Application.tree.data.selectedItemId === undefined || Application.tree.data.selectedItemId === -1) {
+                        helper.moveSelectionTo(+1, 0);
+                    }
+                    helper.showEntry();
+                }
+            }
+
             // ESC to reset search and focus search field
             if (event.keyCode === 27) {
                 var input = document.getElementById('searchKeyword');
@@ -258,6 +289,8 @@
                     bubbles: true,
                     cancelable: true,
                 }));
+
+                helper.showTree();
                 input.focus();
                 event.preventDefault();
             }
