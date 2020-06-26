@@ -328,10 +328,10 @@ var Application = {
             },
             template: (props) => {
                 return `
-                    <div class="d-block">
+                    <div class="d-block noselect">
                         <img src="./img/arrow-back.png" id="goBack" style="height: 15px" />
                     </div>
-                    <div class="d-block">
+                    <div class="d-block noselect">
                         <form>
                             <div class="form-group">
                                 <label for="entryTitle">Title</label>
