@@ -1,0 +1,72 @@
+#content ul {
+    list-style-type: none;
+    padding-inline-start: 3px;
+}
+
+#content li {
+    cursor: pointer;
+    user-select: none; 
+}
+  
+#content > ul {
+    margin: 0;
+    padding: 0;
+}
+  
+.caret {
+    cursor: pointer;
+    user-select: none;
+}
+  
+.caret::before {
+    content: "\25B7";
+    color: black;
+    display: inline-block;
+    margin-right: 6px;
+}
+  
+.caret-down::before {
+    transform: rotate(90deg);
+}
+
+.nested {
+    display: none;
+}  
+
+.active {
+    display: block;
+}
+
+.itemselected {
+    color: red;
+}
+
+.noselect {
+    -webkit-touch-callout: none; /* iOS Safari */
+      -webkit-user-select: none; /* Safari */
+       -khtml-user-select: none; /* Konqueror HTML */
+         -moz-user-select: none; /* Old versions of Firefox */
+          -ms-user-select: none; /* Internet Explorer/Edge */
+              user-select: none; /* Non-prefixed version, currently
+                                    supported by Chrome, Edge, Opera and Firefox */
+  }
+
+.copy-value {
+    background-image: url('../img/copy.png');
+    background-position:center center;
+    background-repeat: no-repeat;
+    background-size: 20px;
+    width: 25px;
+}
+
+.view-value {
+    background-image: url('../img/view.png');
+    background-position:center center;
+    background-repeat: no-repeat;
+    background-size: 20px;
+    width: 25px;
+}
+
+.is-hidden {
+    display: none;
+}

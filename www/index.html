@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sauveyre: KeePass database viewer</title>
+    <link rel="stylesheet" href="css/bootrap.4.5.0.min.css"></link>
+    <link rel="stylesheet" href="css/main.css"></link>
+</head>
+<body>
+    <div id="app" class="container-fluid"></div>
+</body>
+<script type="text/javascript" src="js/lib/msal.1.3.2.js"></script>
+<script type="text/javascript" src="js/lib/kdbxweb.min.js"></script>
+<script type="text/javascript" src="js/lib/reef.min.js"></script>
+<script type="text/javascript" src="js/application.js"></script>
+
+<script type="text/javascript">
+
+    window.addEventListener('load', async () => {
+
+        Application.init(); 
+
+        var helper = {
+            copyPassword: (input) => {
+                var originalValue = undefined;
+                if (input.type === 'password') {
+                    originalValue = input.value;
+                    var decryptedPassword = Kdbx.decryptPwd(originalValue);                    
+                    input.value = decryptedPassword;
+                    input.type = 'text';
+                }
+
+                input.select();
+                input.setSelectionRange(0, 99999); /*For mobile devices*/
+                document.execCommand("copy");
+
+                // Wait 0.5 seconds then swap back
+                if (originalValue) {
+                    timer = window.setTimeout(() => {
+                        input.value = originalValue;
+                        input.type = "password";
+                    }, 500);
+                }
+            },
+
+            moveSelectionTo: (increment, defaultIfNoSelection) => {
+                var currentSelection = document.querySelector('li.itemselected');
+                var currentIndex = 0;
+                
+                if (currentSelection !== null) {
+                    currentIndex = currentSelection.getAttribute('data-index')*1;
+                }
+                else {
+                    // No selection
+                    if (defaultIfNoSelection !== null)
+                        currentIndex = defaultIfNoSelection;
+                    else return; // Nothing to do
+                }
+
+                var futurSelection = document.querySelector(`li.treeEntry[data-index='${currentIndex + increment}']`);
+                if (futurSelection) {
+                    var futurSelectionId = futurSelection.getAttribute('data-id')*1;
+                    Application.select(futurSelectionId);                    
+                }
+            },
+        
+            signedIn: () => {
+                Application.app.data = {
+                    isSignedIn: true,
+                    userName: Authentication.userName()
+                }
+                Application.app.attach(Application.pwd);
+
+                // Give focus to text field
+                window.setTimeout(() => {
+                    document.getElementById('dbpassword').focus();
+                }, 500);
+            },
+
+            showCryptedValue: (element) => {
+                var input = document.getElementById(element.getAttribute('data-for'));
+                var entryuuid = input.value;
+                var decryptedPassword = Kdbx.decryptPwd(entryuuid);
+                
+                input.value = decryptedPassword;
+                input.type = 'text';
+
+                // return the release action to bind to the correct events
+                return (event) => {
+                    input.value = entryuuid;
+                    input.type = "password";
+                };
+                
+            },
+
+            showTree: () => {
+                document.getElementById('tree').classList.remove('is-hidden');
+                document.getElementById('entry').classList.add('is-hidden');
+            },
+
+            showEntry: () => {
+                document.getElementById('tree').classList.add('is-hidden');
+                document.getElementById('entry').classList.remove('is-hidden');
+            }
+        }
+        
+        // Register event receivers
+        document.addEventListener('click', async (event) => {
+
+            if (event.target.id == 'signIn') {
+                
+                var result = await Authentication.signIn();
+                if (result && result.success) {
+                    var isAllowed = await Authentication.isAllowed();
+                    if (isAllowed && isAllowed.isAllowed) {
+                        helper.signedIn();
+                    }
+                }
+                event.preventDefault();
+            }
+
+            if (event.target.id == 'signOut') {
+                await Authentication.signOut();
+            }
+
+            if (event.target.id == 'loadDB') {
+                // Get password before disposing the element
+                var dbpass = document.getElementById('dbpassword').value;
+                //app.detach does not seem to work => open a ticket
+                Application.app.attached.splice(0);
+                Application.app.render();
+                Application.content.data.isLoading = true;
+                // Get token
+                var token = await Authentication.getToken();
+                if (token) {
+                    var data = await Kdbx.load(token, dbpass);
+                    if (data) {
+                        Application.content.data = {
+                            isLoading: false,
+                        };
+
+                        Application.tree.data = {
+                            rootGroup: data
+                        };
+
+                        Application.content.attach(Application.entryPanel);
+                        Application.tree.attach(Application.searchEntries);
+
+                        // Give focus to search
+                        window.setTimeout(() => {
+                            document.getElementById('searchKeyword').focus();
+                        }, 500);
+                    }
+                    else {
+                        // Could not log DB
+                        Application.content.data.isLoading = false;
+                        Application.pwd.data = {
+                            error: "Could not open database. Check JS console for information."
+                        }
+                    }
+                }
+                else {
+                    // Could not log DB
+                    Application.content.data.isLoading = false;
+                    Application.pwd.data = {
+                        error: "Could not open database. Check JS console for information."
+                    }
+                }
+            }
+
+            if (event.target.classList.contains('copy-value')) {
+                var input = document.getElementById(event.target.getAttribute('data-for'));
+                helper.copyPassword(input);
+            }
+
+            // for the tree
+            if (event.target.classList.contains('caret')) {
+                event.target.parentElement.querySelector('.nested').classList.toggle('active');
+                event.target.classList.toggle('caret-down');
+            }
+
+            if (event.target.classList.contains('treeEntry')) {
+                var selectedId = event.target.getAttribute('data-id')*1;
+                Application.select(selectedId);
+                // Adapt UI
+                helper.showEntry();
+            }
+
+            if (event.target.id === 'goBack') {
+                helper.showTree();
+            }
+
+        }, false);
+
+        document.addEventListener('input', (event) => {
+
+            if (event.target.id == 'searchKeyword') {
+                var query = event.target.value;
+
+                const filter = (tree, value) => {
+                    for (const entry of tree.entries) {
+                        if (entry.title.toLowerCase().includes(value.toLowerCase())) {
+                            entry.hidden = false;
+                        }
+                        else {
+                            entry.hidden = true;
+                        }
+                    }                  
+
+                    for (const child of tree.children) {
+                        const res = filter(child, value);
+                    }
+                };
+
+                // Clone tree
+                var treeCopy = Reef.clone(Application.tree.data);
+                // Filter values
+                filter(treeCopy.rootGroup, query);
+                if (query.length === 0) {
+                    // Reset selection as nothing is in the text field
+                    treeCopy.selectedItemId = -1;
+                }
+                // Copy back to Reef to update UI
+                Application.tree.data = treeCopy;
+            }
+
+        }, false);
+        
+        document.addEventListener('mousedown', (event) => {
+
+            if (event.target.classList.contains('view-value')) {
+                const release = helper.showCryptedValue(event.target);
+                event.target.addEventListener("mouseleave", release, false);
+                event.target.addEventListener("mouseup", release, false);
+            }
+
+        }, false);
+
+        document.addEventListener('touchstart', (event) => {
+
+            if (event.target.classList.contains('view-value')) {
+                const release = helper.showCryptedValue(event.target);
+                event.target.addEventListener("touchend", release, false);
+                event.target.addEventListener("touchmove", release, false);
+            }
+
+        }, false);
+
+        document.addEventListener('keydown', (event) => {
+            
+            // submit DB password
+            if (event.target.id === 'dbpassword' && event.keyCode === 13) {
+                document.getElementById('loadDB').click();
+            }
+
+            // Allow navigation with keys up/down in the tree, regardless the focused control
+            if (event.keyCode === 40) {
+                // Key down
+                helper.moveSelectionTo(+1, 0);
+                event.preventDefault()
+            }
+
+            if (event.keyCode === 38) {
+                // Key up
+                helper.moveSelectionTo(-1, null);
+                event.preventDefault()
+            }
+
+            if (event.keyCode === 13) {
+                // Return
+                if (event.target.id === 'searchKeyword') {
+                    // If no selection, load the first one in the list (if any)
+                    // If selection, load it
+                    console.log(Application.tree.data.selectedItemId);
+                    if (Application.tree.data.selectedItemId === undefined || Application.tree.data.selectedItemId === -1) {
+                        helper.moveSelectionTo(+1, 0);
+                    }
+                    helper.showEntry();
+                }
+            }
+
+            // ESC to reset search and focus search field
+            if (event.keyCode === 27) {
+                var input = document.getElementById('searchKeyword');
+                input.value = '';
+                // Trigger input to refresh the ui
+                input.dispatchEvent(new Event('input', {
+                    bubbles: true,
+                    cancelable: true,
+                }));
+
+                helper.showTree();
+                input.focus();
+                event.preventDefault();
+            }
+
+            // Shortcut to copy password, regardless the focus only if an entry is selected
+            if (event.ctrlKey && event.keyCode === 67) {
+                var input = document.getElementById('entryPassword');
+                helper.copyPassword(input);
+                event.preventDefault();
+            }
+
+        }, false);
+
+        await Authentication.init();
+        if (Authentication.isLoggedIn()) {
+            helper.signedIn();
+        }
+        else {
+            Application.app.render();
+        }
+        
+    });
+
+</script>
+</html>
