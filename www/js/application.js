@@ -283,9 +283,11 @@ var Application = {
                         return `
                             ${parent.children.map((child) => {
                                 levels.push(child.name);
-                                return `
+                                let sub = `
                                     ${flattenTree(child, levels)}
                                 `;
+                                levels.splice(-1,1)
+                                return sub;
                             }).join('')}
 
                             ${parent.entries.map((entry) => {
